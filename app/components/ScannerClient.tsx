@@ -151,21 +151,22 @@ export default function ScannerClient({
         undefined,
         videoRef.current,
         (result, err, controls) => {
+          let scannedBarcode = barcode;
           if (controls && !controlsRef.current) {
             controlsRef.current = controls;
           }
 
           if (result) {
-            const text = result.getText();
-            if (lastCodeRef.current === text) {
+            scannedBarcode = result.getText();
+            if (lastCodeRef.current === scannedBarcode) {
               return;
             }
-            lastCodeRef.current = text;
-            setBarcode(text);
-            fetchStock(text);
+            lastCodeRef.current = scannedBarcode;
+            setBarcode(scannedBarcode);
+            fetchStock(scannedBarcode);
           }
           if (
-            !barcode &&
+            !scannedBarcode &&
             err &&
             (err as { name?: string })?.name !== "NotFoundException"
           ) {
