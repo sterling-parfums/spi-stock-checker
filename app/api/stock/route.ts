@@ -199,10 +199,29 @@ export async function GET(request: NextRequest) {
 
     const product = extractProduct(productPayload);
     if (!product) {
+      const value = (productPayload as { value?: unknown })?.value;
+      if (Array.isArray(value) && value.length === 0) {
+        return NextResponse.json(
+          { error: "Barcode not found.", details: productPayload },
+          { status: 404 },
+        );
+      }
+
+      const d = (productPayload as { d?: { results?: unknown[] } })?.d;
+      if (Array.isArray(d?.results) && d?.results.length === 0) {
+        return NextResponse.json(
+          { error: "Barcode not found.", details: productPayload },
+          { status: 404 },
+        );
+      }
+
       return NextResponse.json(
         {
           error: "SAP product response missing Product key.",
           details: productPayload,
+          raw: {
+            product: productPayload,
+          },
         },
         { status: 502 },
       );
