@@ -158,6 +158,7 @@ export default function ScannerClient({
 
           if (result) {
             scannedBarcode = result.getText();
+            console.log("[Scanner] decoded barcode", scannedBarcode);
             if (lastCodeRef.current === scannedBarcode) {
               return;
             }
@@ -165,6 +166,7 @@ export default function ScannerClient({
             setBarcode(scannedBarcode);
             fetchStock(scannedBarcode);
           }
+
           if (
             !scannedBarcode &&
             err &&
