@@ -165,20 +165,6 @@ export default function ScannerClient({
             setBarcode((b) => text || b);
             fetchStock(text);
           }
-
-          if (err && (err as { name?: string })?.name !== "NotFoundException") {
-            const message =
-              err instanceof Error
-                ? err.message
-                : typeof err === "string"
-                  ? err
-                  : "Camera or decode error.";
-            console.error("[Scanner] decode error", err);
-            setStatus("error");
-            setError(
-              `Camera or decode error. ${message ? `(${message}) ` : ""}Check permissions and retry.`,
-            );
-          }
         },
       )
       .catch((err) => {
