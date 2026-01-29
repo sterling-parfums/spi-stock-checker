@@ -41,6 +41,7 @@ export default function ScannerClient({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
+  const responseRef = useRef<HTMLDivElement | null>(null);
 
   const fetchStock = useCallback(async (code: string) => {
     setIsLoading(true);
@@ -59,6 +60,11 @@ export default function ScannerClient({
 
       setStock(payload);
       setStatus("scanned");
+      setManualCode("");
+      responseRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "SAP lookup failed.");
@@ -236,7 +242,10 @@ export default function ScannerClient({
             </div>
 
             <div className="flex flex-col gap-6">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+              <div
+                ref={responseRef}
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+              >
                 <p className="text-xs uppercase tracking-[0.3em] text-white/50">
                   Last barcode
                 </p>
@@ -297,47 +306,6 @@ export default function ScannerClient({
                           ? stock.stock.toLocaleString()
                           : "—"}
                       </p>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
-                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                        Batches
-                      </p>
-                      <div className="mt-3 max-h-56 space-y-2 overflow-auto text-sm text-white/70">
-                        {(stock.stockItems ?? []).length === 0 ? (
-                          <p className="text-white/50">No batch rows returned.</p>
-                        ) : (
-                          stock.stockItems?.map((item, index) => {
-                            const batch =
-                              (item as { Batch?: string }).Batch ?? "—";
-                            const qty =
-                              (item as {
-                                MatlWrhsStkQtyInMatlBaseUnit?: unknown;
-                              }).MatlWrhsStkQtyInMatlBaseUnit ?? "—";
-                            const storage =
-                              (item as { StorageLocation?: string })
-                                .StorageLocation ?? "—";
-                            const stockType =
-                              (item as { InventoryStockType?: string })
-                                .InventoryStockType ?? "—";
-                            return (
-                              <div
-                                key={`${batch}-${index}`}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-                              >
-                                <span className="font-mono text-xs text-white/60">
-                                  {batch}
-                                </span>
-                              <span className="text-xs text-white/60">
-                                {stockType}
-                              </span>
-                                <span className="text-sm text-white">
-                                  {qty}
-                                </span>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
                     </div>
                   </div>
                 ) : null}

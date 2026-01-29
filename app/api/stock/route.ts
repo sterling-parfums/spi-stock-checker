@@ -117,6 +117,9 @@ const extractStockItems = (payload: unknown): Array<Record<string, unknown>> => 
 
 const sumWarehouseStock = (items: Array<Record<string, unknown>>) => {
   return items.reduce((total, item) => {
+    const location = item?.StorageLocation;
+    if (location !== "FG01") return total;
+    if (item?.InventoryStockType !== "01") return total;
     const raw = item?.MatlWrhsStkQtyInMatlBaseUnit;
     const num =
       typeof raw === "number" ? raw : Number.parseFloat(String(raw ?? 0));
