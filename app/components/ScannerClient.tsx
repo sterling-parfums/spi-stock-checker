@@ -5,7 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type StockPayload = {
   barcode: string;
-  stock?: unknown;
+  product?: string;
+  productName?: string;
+  stock?: number;
+  stockItems?: Array<Record<string, unknown>>;
+  raw?: unknown;
   error?: string;
   details?: unknown;
 };
@@ -139,25 +143,52 @@ export default function ScannerClient({
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_left,_rgba(150,0,0,0.2),_transparent_55%),radial-gradient(circle_at_right,_rgba(255,170,170,0.15),_transparent_50%)]" />
         <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[34rem] -translate-x-1/2 rounded-full bg-[#960000]/25 blur-3xl" />
 
-        <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-12 lg:px-12">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/50">
-                SAP Stock Console
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold">
-                Welcome, {userName}
-              </h1>
-              {userEmail ? (
-                <p className="mt-1 text-sm text-white/60">{userEmail}</p>
-              ) : null}
+        <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-6 py-8 lg:gap-8 lg:px-12 lg:py-12">
+          <header className="relative z-30 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#960000]/50 bg-[#960000]/20 text-sm font-semibold">
+                S
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">
+                  SAP Stock Console
+                </p>
+                <p className="text-sm text-white/80">Warehouse Scan</p>
+              </div>
             </div>
-            <a
-              href="/auth/logout"
-              className="rounded-full border border-white/15 px-5 py-2 text-xs uppercase tracking-[0.3em] text-white/70 transition hover:border-white/35 hover:text-white"
-            >
-              Logout
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href="/auth/logout"
+                className="hidden rounded-full border border-white/15 px-4 py-2 text-[10px] uppercase tracking-[0.3em] text-white/70 transition hover:border-white/35 hover:text-white sm:inline-flex"
+              >
+                Logout
+              </a>
+              <details className="relative">
+                <summary className="list-none">
+                  <span className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-white/5 text-xs uppercase tracking-[0.2em] text-white/70 transition hover:border-white/35">
+                    {userName.slice(0, 2)}
+                  </span>
+                </summary>
+                <div className="absolute right-0 z-40 mt-3 w-60 rounded-2xl border border-white/10 bg-[#0a0b0f] p-4 text-sm text-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">
+                    Signed in
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-white">
+                    {userName}
+                  </p>
+                  {userEmail ? (
+                    <p className="mt-1 text-xs text-white/60">{userEmail}</p>
+                  ) : null}
+                  <div className="mt-4 h-px bg-white/10" />
+                  <a
+                    href="/auth/logout"
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-2 text-[10px] uppercase tracking-[0.3em] text-white/70 transition hover:border-white/35 hover:text-white"
+                  >
+                    Logout
+                  </a>
+                </div>
+              </details>
+            </div>
           </header>
 
           <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
@@ -245,9 +276,70 @@ export default function ScannerClient({
                   <p className="mt-4 text-sm text-rose-200">{error}</p>
                 ) : null}
                 {!isLoading && !error && stock ? (
-                  <pre className="mt-4 max-h-64 overflow-auto rounded-2xl bg-black/40 p-4 text-xs text-[#ffd5d5]">
-                    {JSON.stringify(stock.stock ?? stock, null, 2)}
-                  </pre>
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                        Product name
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-white">
+                        {stock.productName ?? stock.product ?? "—"}
+                      </p>
+                      <p className="mt-2 text-sm text-white/60">
+                        Product ID: {stock.product ?? "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[#960000]/40 bg-[#960000]/10 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-[#ffb3b3]">
+                        Total stock (FG01 / 01)
+                      </p>
+                      <p className="mt-2 text-3xl font-semibold text-white">
+                        {typeof stock.stock === "number"
+                          ? stock.stock.toLocaleString()
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                        Batches
+                      </p>
+                      <div className="mt-3 max-h-56 space-y-2 overflow-auto text-sm text-white/70">
+                        {(stock.stockItems ?? []).length === 0 ? (
+                          <p className="text-white/50">No batch rows returned.</p>
+                        ) : (
+                          stock.stockItems?.map((item, index) => {
+                            const batch =
+                              (item as { Batch?: string }).Batch ?? "—";
+                            const qty =
+                              (item as {
+                                MatlWrhsStkQtyInMatlBaseUnit?: unknown;
+                              }).MatlWrhsStkQtyInMatlBaseUnit ?? "—";
+                            const storage =
+                              (item as { StorageLocation?: string })
+                                .StorageLocation ?? "—";
+                            const stockType =
+                              (item as { InventoryStockType?: string })
+                                .InventoryStockType ?? "—";
+                            return (
+                              <div
+                                key={`${batch}-${index}`}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                              >
+                                <span className="font-mono text-xs text-white/60">
+                                  {batch}
+                                </span>
+                              <span className="text-xs text-white/60">
+                                {stockType}
+                              </span>
+                                <span className="text-sm text-white">
+                                  {qty}
+                                </span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ) : null}
                 {!isLoading && !error && !stock ? (
                   <p className="mt-4 text-sm text-white/60">

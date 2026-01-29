@@ -10,6 +10,11 @@ const resolveProductUrl = (barcode: string) => {
   const filterField =
     process.env.SAP_PRODUCT_FILTER_FIELD ?? "ProductStandardID";
   url.searchParams.set("$filter", `${filterField} eq '${barcode}'`);
+  url.searchParams.set("$select", "Product");
+  url.searchParams.set(
+    "$expand",
+    "_ProductBasicText($select=ProductLongText)",
+  );
   return url.toString();
 };
 
@@ -51,6 +56,41 @@ const extractProduct = (payload: unknown): string | null => {
   return null;
 };
 
+const extractProductName = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") return null;
+  const obj = payload as Record<string, unknown>;
+
+  const value = obj.value;
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0] as Record<string, unknown>;
+    const basicText = first._ProductBasicText;
+    if (Array.isArray(basicText) && basicText.length > 0) {
+      const longText = (basicText[0] as Record<string, unknown>)
+        ?.ProductLongText;
+      if (typeof longText === "string") return longText;
+    } else if (basicText && typeof basicText === "object") {
+      const nested = basicText as Record<string, unknown>;
+      const longText = nested.ProductLongText;
+      if (typeof longText === "string") return longText;
+    }
+  }
+
+  const d = obj.d as Record<string, unknown> | undefined;
+  const results = d?.results;
+  if (Array.isArray(results) && results.length > 0) {
+    const first = results[0] as Record<string, unknown>;
+    const basicText = first._ProductBasicText as
+      | { results?: Array<Record<string, unknown>> }
+      | undefined;
+    if (Array.isArray(basicText?.results) && basicText.results.length > 0) {
+      const longText = basicText.results[0]?.ProductLongText;
+      if (typeof longText === "string") return longText;
+    }
+  }
+
+  return null;
+};
+
 const extractStockItems = (payload: unknown): Array<Record<string, unknown>> => {
   if (!payload || typeof payload !== "object") return [];
   const obj = payload as Record<string, unknown>;
@@ -77,9 +117,6 @@ const extractStockItems = (payload: unknown): Array<Record<string, unknown>> => 
 
 const sumWarehouseStock = (items: Array<Record<string, unknown>>) => {
   return items.reduce((total, item) => {
-    const location = item?.StorageLocation;
-    if (location !== "FG01") return total;
-    if (item?.InventoryStockType !== "01") return total;
     const raw = item?.MatlWrhsStkQtyInMatlBaseUnit;
     const num =
       typeof raw === "number" ? raw : Number.parseFloat(String(raw ?? 0));
@@ -168,6 +205,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const productName = extractProductName(productPayload);
+
     const stockUrl = resolveStockUrl(product);
     if (!stockUrl) {
       return NextResponse.json(
@@ -203,6 +242,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       barcode,
       product,
+      productName,
       stock,
       stockItems: items,
       raw: {
