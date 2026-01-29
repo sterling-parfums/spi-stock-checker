@@ -33,9 +33,9 @@ export default function ScannerClient({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const lastCodeRef = useRef<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "scanning" | "scanned" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<
+    "idle" | "scanning" | "scanned" | "error"
+  >("idle");
   const [barcode, setBarcode] = useState<string | null>(null);
   const [stock, setStock] = useState<StockPayload | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,9 +79,12 @@ export default function ScannerClient({
     setStock(null);
 
     try {
-      const response = await fetch(`/api/stock?barcode=${encodeURIComponent(code)}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/stock?barcode=${encodeURIComponent(code)}`,
+        {
+          cache: "no-store",
+        },
+      );
       const payload: StockPayload = await response.json();
 
       if (!response.ok) {
@@ -144,35 +147,42 @@ export default function ScannerClient({
     setError(null);
 
     codeReader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result, err, controls) => {
-        if (controls && !controlsRef.current) {
-          controlsRef.current = controls;
-        }
-
-        if (result) {
-          const text = result.getText();
-          if (lastCodeRef.current === text) {
-            return;
+      .decodeFromVideoDevice(
+        undefined,
+        videoRef.current,
+        (result, err, controls) => {
+          if (controls && !controlsRef.current) {
+            controlsRef.current = controls;
           }
-          lastCodeRef.current = text;
-          setBarcode(text);
-          fetchStock(text);
-        }
 
-        if (err && (err as { name?: string })?.name !== "NotFoundException") {
-          const message =
-            err instanceof Error
-              ? err.message
-              : typeof err === "string"
-                ? err
-                : "Camera or decode error.";
-          console.error("[Scanner] decode error", err);
-          setStatus("error");
-          setError(
-            `Camera or decode error. ${message ? `(${message}) ` : ""}Check permissions and retry.`,
-          );
-        }
-      })
+          if (result) {
+            const text = result.getText();
+            if (lastCodeRef.current === text) {
+              return;
+            }
+            lastCodeRef.current = text;
+            setBarcode(text);
+            fetchStock(text);
+          }
+          if (
+            !barcode &&
+            err &&
+            (err as { name?: string })?.name !== "NotFoundException"
+          ) {
+            const message =
+              err instanceof Error
+                ? err.message
+                : typeof err === "string"
+                  ? err
+                  : "Camera or decode error.";
+            console.error("[Scanner] decode error", err);
+            setStatus("error");
+            setError(
+              `Camera or decode error. ${message ? `(${message}) ` : ""}Check permissions and retry.`,
+            );
+          }
+        },
+      )
       .catch((err) => {
         if (!isMounted) return;
         console.error("[Scanner] start error", err);
@@ -323,7 +333,10 @@ export default function ScannerClient({
                   {barcode ?? "—"}
                 </p>
                 <div className="mt-4 h-px bg-white/10" />
-                <form className="mt-4 flex flex-col gap-3" onSubmit={submitManual}>
+                <form
+                  className="mt-4 flex flex-col gap-3"
+                  onSubmit={submitManual}
+                >
                   <label className="text-xs uppercase tracking-[0.3em] text-white/50">
                     Manual entry
                   </label>
