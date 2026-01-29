@@ -1,6 +1,6 @@
 "use client";
 
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import { BrowserMultiFormatOneDReader } from "@zxing/browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type StockPayload = {
@@ -140,7 +140,7 @@ export default function ScannerClient({
       return;
     }
 
-    const codeReader = new BrowserMultiFormatReader();
+    const codeReader = new BrowserMultiFormatOneDReader();
     let isMounted = true;
 
     setStatus("scanning");
@@ -151,27 +151,22 @@ export default function ScannerClient({
         undefined,
         videoRef.current,
         (result, err, controls) => {
-          let scannedBarcode = barcode;
           if (controls && !controlsRef.current) {
             controlsRef.current = controls;
           }
 
           if (result) {
-            scannedBarcode = result.getText();
-            console.log("[Scanner] decoded barcode", scannedBarcode);
-            if (lastCodeRef.current === scannedBarcode) {
+            const text = result.getText();
+            console.log("[Scanner] decoded barcode", text);
+            if (lastCodeRef.current === text) {
               return;
             }
-            lastCodeRef.current = scannedBarcode;
-            setBarcode(scannedBarcode);
-            fetchStock(scannedBarcode);
+            lastCodeRef.current = text;
+            setBarcode((b) => text || b);
+            fetchStock(text);
           }
 
-          if (
-            !scannedBarcode &&
-            err &&
-            (err as { name?: string })?.name !== "NotFoundException"
-          ) {
+          if (err && (err as { name?: string })?.name !== "NotFoundException") {
             const message =
               err instanceof Error
                 ? err.message
