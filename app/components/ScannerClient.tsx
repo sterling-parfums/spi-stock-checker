@@ -285,7 +285,7 @@ export default function ScannerClient({
                       playsInline
                     />
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                      <div className="h-40 w-64 rounded-2xl border border-[#ffb3b3]/70 bg-[#960000]/15 shadow-[0_0_30px_rgba(150,0,0,0.35)]" />
+                      <div className="h-1 w-full bg-[#ffb3b3] shadow-[0_0_18px_rgba(150,0,0,0.6)]" />
                     </div>
                   </>
                 ) : (
