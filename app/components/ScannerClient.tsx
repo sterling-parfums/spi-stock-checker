@@ -45,6 +45,11 @@ export default function ScannerClient({
   const [cameraEnabled, setCameraEnabled] = useState(true);
 
   const fetchStock = useCallback(async (code: string) => {
+    if (code.length !== 13) {
+      setStatus("error");
+      setError("Barcode must be exactly 13 characters.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     setStock(null);
@@ -87,6 +92,11 @@ export default function ScannerClient({
       event.preventDefault();
       const trimmed = manualCode.trim();
       if (!trimmed) return;
+      if (trimmed.length !== 13) {
+        setStatus("error");
+        setError("Barcode must be exactly 13 characters.");
+        return;
+      }
       lastCodeRef.current = trimmed;
       setBarcode(trimmed);
       await fetchStock(trimmed);
