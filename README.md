@@ -14,9 +14,9 @@ AUTH0_CLIENT_ID=YOUR_CLIENT_ID
 AUTH0_CLIENT_SECRET=YOUR_CLIENT_SECRET
 
 # SAP API integration
-# Provide just the host base; the app appends the fixed OData path and $filter.
+# Provide just the host base; the app appends the fixed OData paths and filters.
 SAP_BASE_API_URL=https://my419914-api.s4hana.cloud.sap
-# Optional: override OData filter field (default: ProductStandardID)
+# Optional: override OData filter field for product lookup (default: ProductStandardID)
 SAP_PRODUCT_FILTER_FIELD=ProductStandardID
 
 # Auth options (pick one)
