@@ -109,7 +109,7 @@ export default function ScannerClient({
     setError(null);
 
     codeReader
-      .decodeFromVideoDevice(null, videoRef.current, (result, err, controls) => {
+      .decodeFromVideoDevice(undefined, videoRef.current, (result, err, controls) => {
         if (controls && !controlsRef.current) {
           controlsRef.current = controls;
         }
