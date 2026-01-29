@@ -42,6 +42,7 @@ export default function ScannerClient({
   const [error, setError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const responseRef = useRef<HTMLDivElement | null>(null);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
 
   const fetchStock = useCallback(async (code: string) => {
     setIsLoading(true);
@@ -95,6 +96,11 @@ export default function ScannerClient({
 
   useEffect(() => {
     if (!videoRef.current) return;
+    if (!cameraEnabled) {
+      controlsRef.current?.stop();
+      controlsRef.current = null;
+      return;
+    }
 
     const codeReader = new BrowserMultiFormatReader();
     let isMounted = true;
@@ -132,9 +138,8 @@ export default function ScannerClient({
     return () => {
       isMounted = false;
       controlsRef.current?.stop();
-      codeReader.reset();
     };
-  }, [fetchStock]);
+  }, [fetchStock, cameraEnabled]);
 
   const statusLabel = useMemo(() => {
     if (status === "scanning") return "Scanning camera feed";
@@ -216,15 +221,28 @@ export default function ScannerClient({
               </div>
 
               <div className="relative mt-6 overflow-hidden rounded-2xl border border-white/10 bg-black/60">
-                <video
-                  ref={videoRef}
-                  className="h-[360px] w-full object-cover"
-                  muted
-                  playsInline
-                />
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="h-40 w-64 rounded-2xl border border-[#ffb3b3]/70 bg-[#960000]/15 shadow-[0_0_30px_rgba(150,0,0,0.35)]" />
-                </div>
+                {cameraEnabled ? (
+                  <>
+                    <video
+                      ref={videoRef}
+                      className="h-[360px] w-full object-cover"
+                      muted
+                      playsInline
+                    />
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="h-40 w-64 rounded-2xl border border-[#ffb3b3]/70 bg-[#960000]/15 shadow-[0_0_30px_rgba(150,0,0,0.35)]" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-[360px] w-full flex-col items-center justify-center gap-3 bg-black/70 text-center text-white/70">
+                    <p className="text-sm uppercase tracking-[0.3em] text-white/50">
+                      Camera paused
+                    </p>
+                    <p className="text-base font-semibold text-white">
+                      Feed is turned off
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -234,6 +252,13 @@ export default function ScannerClient({
                   className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.3em] text-white/80 transition hover:border-white/35 hover:bg-white/10"
                 >
                   Rescan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCameraEnabled((prev) => !prev)}
+                  className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.3em] text-white/80 transition hover:border-white/35 hover:bg-white/10"
+                >
+                  {cameraEnabled ? "Turn off feed" : "Turn on feed"}
                 </button>
                 <span className="text-xs uppercase tracking-[0.3em] text-white/50">
                   Ensure barcode stays inside the frame
