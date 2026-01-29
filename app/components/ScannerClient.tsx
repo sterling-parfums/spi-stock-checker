@@ -43,6 +43,30 @@ export default function ScannerClient({
   const [manualCode, setManualCode] = useState("");
   const responseRef = useRef<HTMLDivElement | null>(null);
   const [cameraEnabled, setCameraEnabled] = useState(true);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const playBeep = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+      const context = audioContextRef.current;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      gain.gain.setValueAtTime(0.001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.12);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.13);
+    } catch {
+      // Ignore audio failures (e.g., autoplay restrictions)
+    }
+  }, []);
 
   const fetchStock = useCallback(async (code: string) => {
     if (code.length !== 13) {
@@ -67,6 +91,7 @@ export default function ScannerClient({
       setStock(payload);
       setStatus("scanned");
       setManualCode("");
+      playBeep();
       responseRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
