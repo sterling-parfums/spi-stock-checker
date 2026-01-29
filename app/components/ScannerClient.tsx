@@ -160,12 +160,22 @@ export default function ScannerClient({
         }
 
         if (err && (err as { name?: string })?.name !== "NotFoundException") {
+          const message =
+            err instanceof Error
+              ? err.message
+              : typeof err === "string"
+                ? err
+                : "Camera or decode error.";
+          console.error("[Scanner] decode error", err);
           setStatus("error");
-          setError("Camera or decode error. Check permissions and retry.");
+          setError(
+            `Camera or decode error. ${message ? `(${message}) ` : ""}Check permissions and retry.`,
+          );
         }
       })
       .catch((err) => {
         if (!isMounted) return;
+        console.error("[Scanner] start error", err);
         setStatus("error");
         setError(err instanceof Error ? err.message : "Camera access failed.");
       });
