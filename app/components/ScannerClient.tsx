@@ -2,28 +2,15 @@
 
 import { BrowserMultiFormatOneDReader } from "@zxing/browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-type StockPayload = {
-  barcode: string;
-  product?: string;
-  productName?: string;
-  stock?: number;
-  stockItems?: Array<Record<string, unknown>>;
-  raw?: unknown;
-  error?: string;
-  details?: unknown;
-};
+import CameraPanel from "./CameraPanel";
+import ManualEntryCard from "./ManualEntryCard";
+import ResponsePanel from "./ResponsePanel";
+import ScannerAppBar from "./ScannerAppBar";
+import type { StockPayload } from "./types";
 
 type ScannerClientProps = {
   userName: string;
   userEmail?: string;
-};
-
-const statusStyles: Record<string, string> = {
-  idle: "bg-white/10 text-white/70",
-  scanning: "bg-[#960000]/25 text-[#ffb3b3]",
-  scanned: "bg-emerald-500/15 text-emerald-200",
-  error: "bg-rose-500/15 text-rose-200",
 };
 
 export default function ScannerClient({
@@ -209,197 +196,38 @@ export default function ScannerClient({
         <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[34rem] -translate-x-1/2 rounded-full bg-[#960000]/25 blur-3xl" />
 
         <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-6 py-8 lg:gap-8 lg:px-12 lg:py-12">
-          <header className="relative z-30 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#960000]/50 bg-[#960000]/20 text-sm font-semibold">
-                S
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">
-                  SAP Stock Console
-                </p>
-                <p className="text-sm text-white/80">Warehouse Scan</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <a
-                href="/auth/logout"
-                className="hidden rounded-full border border-white/15 px-4 py-2 text-[10px] uppercase tracking-[0.3em] text-white/70 transition hover:border-white/35 hover:text-white sm:inline-flex"
-              >
-                Logout
-              </a>
-              <details className="relative">
-                <summary className="list-none">
-                  <span className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-white/5 text-xs uppercase tracking-[0.2em] text-white/70 transition hover:border-white/35">
-                    {userName.slice(0, 2)}
-                  </span>
-                </summary>
-                <div className="absolute right-0 z-40 mt-3 w-60 rounded-2xl border border-white/10 bg-[#0a0b0f] p-4 text-sm text-white shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">
-                    Signed in
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {userName}
-                  </p>
-                  {userEmail ? (
-                    <p className="mt-1 text-xs text-white/60">{userEmail}</p>
-                  ) : null}
-                  <div className="mt-4 h-px bg-white/10" />
-                  <a
-                    href="/auth/logout"
-                    className="mt-3 inline-flex w-full items-center justify-center rounded-full border border-white/15 px-4 py-2 text-[10px] uppercase tracking-[0.3em] text-white/70 transition hover:border-white/35 hover:text-white"
-                  >
-                    Logout
-                  </a>
-                </div>
-              </details>
-            </div>
-          </header>
+          <ScannerAppBar userName={userName} userEmail={userEmail} />
 
           <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-            {cameraEnabled ? (
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                      Live Camera
-                    </p>
-                    <h2 className="mt-2 text-xl font-semibold">
-                      Barcode capture
-                    </h2>
-                  </div>
-                  <div
-                    className={`rounded-full px-4 py-2 text-xs uppercase tracking-[0.25em] ${statusStyles[status]}`}
-                  >
-                    {statusLabel}
-                  </div>
-                </div>
-
-                <div className="relative mt-6 overflow-hidden rounded-2xl border border-white/10 bg-black/60">
-                  <video
-                    ref={videoRef}
-                    className="h-[360px] w-full object-cover"
-                    muted
-                    playsInline
-                  />
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <div className="h-1 w-full bg-[#ffb3b3] shadow-[0_0_18px_rgba(150,0,0,0.6)]" />
-                  </div>
-                </div>
-
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={resetScan}
-                    className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.3em] text-white/80 transition hover:border-white/35 hover:bg-white/10"
-                  >
-                    Rescan
-                  </button>
-                  <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Ensure barcode stays inside the frame
-                  </span>
-                </div>
-              </div>
-            ) : null}
+            {cameraEnabled && (
+              <CameraPanel
+                videoRef={videoRef}
+                status={status}
+                statusLabel={statusLabel}
+                onRescan={resetScan}
+              />
+            )}
 
             <div className="flex flex-col gap-6">
-              {cameraEnabled ? (
-                <div
-                  ref={responseRef}
-                  className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur"
-                >
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    Last barcode
-                  </p>
-                  <p className="mt-3 font-mono text-lg text-white">
-                    {barcode ?? "—"}
-                  </p>
-                  <div className="mt-4 h-px bg-white/10" />
-                  <form
-                    className="mt-4 flex flex-col gap-3"
-                    onSubmit={submitManual}
-                  >
-                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">
-                      Manual entry
-                    </label>
-                    <input
-                      value={manualCode}
-                      onChange={(event) => setManualCode(event.target.value)}
-                      placeholder="Type or paste barcode"
-                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:border-[#960000] focus:outline-none focus:ring-2 focus:ring-[#960000]/40"
-                    />
-                    <button
-                      type="submit"
-                      className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.3em] text-white/80 transition hover:border-white/35 hover:bg-white/10"
-                    >
-                      Lookup stock
-                    </button>
-                  </form>
-                </div>
-              ) : null}
+              {cameraEnabled && (
+                <ManualEntryCard
+                  barcode={barcode}
+                  manualCode={manualCode}
+                  onManualCodeChange={setManualCode}
+                  onSubmit={submitManual}
+                />
+              )}
 
-              {!cameraEnabled ? (
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                    SAP Response
-                  </p>
-                  {isLoading ? (
-                    <p className="mt-4 text-sm text-[#ffb3b3]">
-                      Contacting SAP...
-                    </p>
-                  ) : null}
-                  {error ? (
-                    <p className="mt-4 text-sm text-rose-200">{error}</p>
-                  ) : null}
-                  {!isLoading && !error && stock ? (
-                    <div className="mt-4 space-y-4">
-                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                        <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                          Scanned barcode
-                        </p>
-                        <p className="mt-2 font-mono text-lg text-white">
-                          {barcode ?? "—"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
-                        <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                          Product name
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-white">
-                          {stock.productName ?? stock.product ?? "—"}
-                        </p>
-                        <p className="mt-2 text-sm text-white/60">
-                          Product ID: {stock.product ?? "—"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-[#960000]/40 bg-[#960000]/10 p-4">
-                        <p className="text-xs uppercase tracking-[0.3em] text-[#ffb3b3]">
-                          Total stock (FG01 / 01)
-                        </p>
-                        <p className="mt-2 text-3xl font-semibold text-white">
-                          {typeof stock.stock === "number"
-                            ? stock.stock.toLocaleString()
-                            : "—"}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-                  {!isLoading && !error && !stock ? (
-                    <p className="mt-4 text-sm text-white/60">
-                      Scan a barcode to view stock data.
-                    </p>
-                  ) : null}
-                  <div className="mt-6">
-                    <button
-                      type="button"
-                      onClick={resetScan}
-                      className="rounded-full border border-white/15 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.3em] text-white/80 transition hover:border-white/35 hover:bg-white/10"
-                    >
-                      Rescan
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+              {!cameraEnabled && (
+                <ResponsePanel
+                  containerRef={responseRef}
+                  barcode={barcode}
+                  stock={stock}
+                  isLoading={isLoading}
+                  error={error}
+                  onRescan={resetScan}
+                />
+              )}
             </div>
           </section>
         </main>
