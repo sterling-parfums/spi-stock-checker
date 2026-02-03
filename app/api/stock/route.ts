@@ -13,7 +13,7 @@ const resolveProductUrl = (barcode: string) => {
   url.searchParams.set("$select", "Product");
   url.searchParams.set(
     "$expand",
-    "_ProductBasicText($select=ProductLongText)",
+    "_ProductBasicText($select=ProductLongText),_ProductUnitOfMeasure",
   );
   return url.toString();
 };
@@ -22,8 +22,7 @@ const resolveStockUrl = (product: string) => {
   const baseUrl = process.env.SAP_BASE_API_URL ?? "";
   if (!baseUrl) return null;
 
-  const path =
-    "/sap/opu/odata/sap/API_MATERIAL_STOCK_SRV/A_MaterialStock";
+  const path = "/sap/opu/odata/sap/API_MATERIAL_STOCK_SRV/A_MaterialStock";
   const url = new URL(baseUrl.replace(/\/+$/, "") + path);
   url.searchParams.set("$filter", `Material eq '${product}'`);
   url.searchParams.set("$expand", "to_MatlStkInAcctMod");
@@ -91,7 +90,9 @@ const extractProductName = (payload: unknown): string | null => {
   return null;
 };
 
-const extractStockItems = (payload: unknown): Array<Record<string, unknown>> => {
+const extractStockItems = (
+  payload: unknown,
+): Array<Record<string, unknown>> => {
   if (!payload || typeof payload !== "object") return [];
   const obj = payload as Record<string, unknown>;
 
@@ -99,7 +100,8 @@ const extractStockItems = (payload: unknown): Array<Record<string, unknown>> => 
   if (Array.isArray(value) && value.length > 0) {
     const first = value[0] as Record<string, unknown>;
     const expanded = first?.to_MatlStkInAcctMod;
-    if (Array.isArray(expanded)) return expanded as Array<Record<string, unknown>>;
+    if (Array.isArray(expanded))
+      return expanded as Array<Record<string, unknown>>;
   }
 
   const d = obj.d as Record<string, unknown> | undefined;
@@ -113,6 +115,123 @@ const extractStockItems = (payload: unknown): Array<Record<string, unknown>> => 
   }
 
   return [];
+};
+
+const normalizeNumber = (value: unknown): number | null => {
+  if (typeof value === "number") return Number.isNaN(value) ? null : value;
+  if (value === null || value === undefined) return null;
+  const parsed = Number.parseFloat(String(value));
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const extractProductUoms = (payload: unknown): {
+  baseUom: string | null;
+  baseIsoUom: string | null;
+  units: Array<{
+    uom: string;
+    isoUom: string | null;
+    numerator: number | null;
+    denominator: number | null;
+    ratio: number | null;
+  }>;
+} => {
+  if (!payload || typeof payload !== "object") {
+    return { baseUom: null, baseIsoUom: null, units: [] };
+  }
+  const obj = payload as Record<string, unknown>;
+
+  const value = obj.value;
+  let first: Record<string, unknown> | undefined;
+  if (Array.isArray(value) && value.length > 0) {
+    first = value[0] as Record<string, unknown>;
+  }
+
+  if (!first) {
+    const d = obj.d as Record<string, unknown> | undefined;
+    const results = d?.results;
+    if (Array.isArray(results) && results.length > 0) {
+      first = results[0] as Record<string, unknown>;
+    }
+  }
+
+  if (!first) {
+    return { baseUom: null, baseIsoUom: null, units: [] };
+  }
+
+  const rawUnits = first._ProductUnitOfMeasure;
+  let units: Array<Record<string, unknown>> = [];
+  if (Array.isArray(rawUnits)) {
+    units = rawUnits as Array<Record<string, unknown>>;
+  } else if (rawUnits && typeof rawUnits === "object") {
+    const nested = rawUnits as Record<string, unknown>;
+    const nestedValue = nested.value;
+    if (Array.isArray(nestedValue)) {
+      units = nestedValue as Array<Record<string, unknown>>;
+    } else if (Array.isArray((nested as { results?: unknown }).results)) {
+      units = (nested as { results: Array<Record<string, unknown>> }).results;
+    } else {
+      units = [nested as Record<string, unknown>];
+    }
+  }
+
+  const mappedUnits = units
+    .map((unit) => {
+      const uom =
+        (typeof unit.AlternativeUnit === "string" && unit.AlternativeUnit) ||
+        (typeof unit.AlternativeSAPUnit === "string" &&
+          unit.AlternativeSAPUnit) ||
+        (typeof unit.AlternativeISOUnit === "string" &&
+          unit.AlternativeISOUnit) ||
+        (typeof unit.AlternativeUnitOfMeasure === "string" &&
+          unit.AlternativeUnitOfMeasure) ||
+        (typeof unit.UnitOfMeasure === "string" && unit.UnitOfMeasure) ||
+        (typeof unit.ProductUnitOfMeasure === "string" &&
+          unit.ProductUnitOfMeasure) ||
+        (typeof unit.UoM === "string" && unit.UoM) ||
+        null;
+
+      if (!uom) return null;
+
+      const isoUom =
+        (typeof unit.AlternativeISOUnit === "string" &&
+          unit.AlternativeISOUnit) ||
+        (typeof unit.ISOUnit === "string" && unit.ISOUnit) ||
+        null;
+
+      const numerator = normalizeNumber(unit.QuantityNumerator);
+      const denominator = normalizeNumber(unit.QuantityDenominator);
+      const ratio =
+        numerator !== null && denominator !== null && denominator !== 0
+          ? numerator / denominator
+          : null;
+
+      return {
+        uom,
+        isoUom,
+        numerator,
+        denominator,
+        ratio,
+      };
+    })
+    .filter((unit): unit is NonNullable<typeof unit> => Boolean(unit));
+
+  const baseUom =
+    (typeof first.BaseUnit === "string" && first.BaseUnit) ||
+    (typeof units[0]?.BaseUnit === "string" && units[0].BaseUnit) ||
+    null;
+
+  const baseUnitFromRatio =
+    mappedUnits.find(
+      (unit) => unit.numerator === 1 && unit.denominator === 1,
+    ) ?? null;
+
+  const baseIsoUom =
+    (typeof first.BaseISOUnit === "string" && first.BaseISOUnit) ||
+    (typeof units[0]?.BaseISOUnit === "string" && units[0].BaseISOUnit) ||
+    baseUnitFromRatio?.isoUom ||
+    null;
+
+  return { baseUom, baseIsoUom, units: mappedUnits };
 };
 
 const sumWarehouseStock = (items: Array<Record<string, unknown>>) => {
@@ -171,12 +290,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const apiKeyHeader = process.env.SAP_API_KEY_HEADER;
-  const apiKeyValue = process.env.SAP_API_KEY_VALUE;
-  if (apiKeyHeader && apiKeyValue) {
-    headers[apiKeyHeader] = apiKeyValue;
-  }
-
   try {
     const productResponse = await fetch(productUrl, {
       method: "GET",
@@ -228,6 +341,7 @@ export async function GET(request: NextRequest) {
     }
 
     const productName = extractProductName(productPayload);
+    const { baseUom, baseIsoUom, units } = extractProductUoms(productPayload);
 
     const stockUrl = resolveStockUrl(product);
     if (!stockUrl) {
@@ -260,11 +374,32 @@ export async function GET(request: NextRequest) {
 
     const items = extractStockItems(stockPayload);
     const stock = sumWarehouseStock(items);
+    const alternateUnits = units
+      .filter((unit) => unit.uom !== baseUom)
+      .map((unit) => {
+        const numerator = unit.numerator;
+        const denominator = unit.denominator;
+        const quantity =
+          numerator !== null && denominator !== null && numerator !== 0
+            ? stock * (denominator / numerator)
+            : null;
+        return {
+          uom: unit.uom,
+          isoUom: unit.isoUom ?? unit.uom,
+          quantity,
+          numerator,
+          denominator,
+          ratio: unit.ratio,
+        };
+      });
 
     return NextResponse.json({
       barcode,
       product,
       productName,
+      baseUom,
+      baseIsoUom,
+      alternateUnits,
       stock,
       stockItems: items,
       raw: {
